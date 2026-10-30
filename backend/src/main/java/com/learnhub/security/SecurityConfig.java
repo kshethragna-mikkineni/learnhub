@@ -1,6 +1,8 @@
+
 package com.learnhub.security;
 
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,29 +25,48 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain chain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
-        http.csrf(c -> c.disable())                       // stateless API, token in header
+        http
+            .csrf(c -> c.disable())
             .cors(Customizer.withDefaults())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(s ->
+                s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/*").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated())
-            .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            .exceptionHandling(e ->
+                e.authenticationEntryPoint(
+                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
-    @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
-    CorsConfigurationSource corsSource(@Value("${app.cors.origin}") String origin) {
-        var cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of(origin));
-        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        var src = new UrlBasedCorsConfigurationSource();
-        src.registerCorsConfiguration("/api/**", cfg);
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.origin}") String origin) {
+
+        CorsConfiguration cfg = new CorsConfiguration();
+
+        cfg.setAllowedOrigins(List.of(origin.trim()));
+        cfg.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(false);
+        cfg.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource src =
+            new UrlBasedCorsConfigurationSource();
+
+        src.registerCorsConfiguration("/**", cfg);
+
         return src;
     }
 }
